@@ -8,6 +8,7 @@ import {
   deleteAnswer,
   getQuestionAnswers,
 } from "@/services/answerServices";
+import { voteAnswer } from "@/services/answerVoteServices";
 import {
   Question,
   deleteQuestion,
@@ -44,6 +45,14 @@ export default function QuestionDetail() {
   const [answerContent, setAnswerContent] = useState("");
   const [submittingAnswer, setSubmittingAnswer] = useState(false);
   const [canAffordAnswer, setCanAffordAnswer] = useState(true);
+
+  // Answer votes state
+  const [answerVotes, setAnswerVotes] = useState<Record<string, 1 | -1 | null>>(
+    {}
+  );
+  const [votingAnswers, setVotingAnswers] = useState<Record<string, boolean>>(
+    {}
+  );
 
   const fetchQuestion = async () => {
     try {
@@ -132,6 +141,34 @@ export default function QuestionDetail() {
     return () => unsubscribe();
   }, [id]);
 
+  // Listen to user's votes on answers in real-time
+  useEffect(() => {
+    if (!user || !id || answers.length === 0) return;
+
+    const unsubscribes = answers.map((answer) => {
+      const voteRef = doc(
+        db,
+        "questions",
+        id as string,
+        "answers",
+        answer.id,
+        "votes",
+        user.uid
+      );
+
+      return onSnapshot(voteRef, (snapshot) => {
+        setAnswerVotes((prev) => ({
+          ...prev,
+          [answer.id]: snapshot.exists() ? snapshot.data().value : null,
+        }));
+      });
+    });
+
+    return () => {
+      unsubscribes.forEach((unsubscribe) => unsubscribe());
+    };
+  }, [id, user, answers.length]);
+
   const isAuthor = question?.authorId === user?.uid;
 
   const handleVote = async (value: 1 | -1) => {
@@ -154,6 +191,33 @@ export default function QuestionDetail() {
       console.log(error);
     } finally {
       setVoting(false);
+    }
+  };
+
+  const handleAnswerVote = async (answer: Answer, value: 1 | -1) => {
+    if (!user || !question) {
+      Alert.alert("Error", "You must be logged in to vote");
+      return;
+    }
+
+    if (answer.authorId === user.uid) {
+      Alert.alert("Error", "You cannot vote on your own answer");
+      return;
+    }
+
+    try {
+      setVotingAnswers((prev) => ({ ...prev, [answer.id]: true }));
+      await voteAnswer(
+        question.id,
+        answer.id,
+        user.uid,
+        answer.authorId,
+        value
+      );
+    } catch (error: any) {
+      Alert.alert("Error", error.message || "Failed to vote");
+    } finally {
+      setVotingAnswers((prev) => ({ ...prev, [answer.id]: false }));
     }
   };
 
@@ -442,33 +506,89 @@ export default function QuestionDetail() {
             ) : (
               answers.map((answer) => {
                 const isAnswerAuthor = answer.authorId === user?.uid;
+                const userAnswerVote = answerVotes[answer.id] || null;
+                const isVotingThisAnswer = votingAnswers[answer.id] || false;
+
                 return (
                   <View key={answer.id} style={styles.answerCard}>
-                    <View style={styles.answerHeader}>
-                      <View style={styles.answerVotes}>
-                        <Text style={styles.answerVotesText}>
-                          {answer.votes} votes
+                    {/* Answer Voting Section */}
+                    <View style={styles.answerVotingSection}>
+                      <TouchableOpacity
+                        style={[
+                          styles.answerVoteButton,
+                          userAnswerVote === 1 && styles.answerVoteButtonActive,
+                          isVotingThisAnswer && styles.voteButtonDisabled,
+                        ]}
+                        onPress={() => handleAnswerVote(answer, 1)}
+                        disabled={isVotingThisAnswer || isAnswerAuthor}
+                      >
+                        <Text
+                          style={[
+                            styles.answerVoteButtonText,
+                            userAnswerVote === 1 &&
+                              styles.answerVoteButtonTextActive,
+                          ]}
+                        >
+                          ▲
+                        </Text>
+                      </TouchableOpacity>
+
+                      <Text style={styles.answerVotesCount}>
+                        {answer.votes}
+                      </Text>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.answerVoteButton,
+                          userAnswerVote === -1 &&
+                            styles.answerVoteButtonActiveDown,
+                          isVotingThisAnswer && styles.voteButtonDisabled,
+                        ]}
+                        onPress={() => handleAnswerVote(answer, -1)}
+                        disabled={isVotingThisAnswer || isAnswerAuthor}
+                      >
+                        <Text
+                          style={[
+                            styles.answerVoteButtonText,
+                            userAnswerVote === -1 &&
+                              styles.answerVoteButtonTextActiveDown,
+                          ]}
+                        >
+                          ▼
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Answer Content */}
+                    <View style={styles.answerMainContent}>
+                      <View style={styles.answerHeader}>
+                        {isAnswerAuthor && (
+                          <>
+                            <View style={styles.answerAuthorBadge}>
+                              <Text style={styles.answerAuthorBadgeText}>
+                                Your Answer
+                              </Text>
+                            </View>
+                            <TouchableOpacity
+                              onPress={() => handleDeleteAnswer(answer.id)}
+                            >
+                              <Text style={styles.deleteAnswerText}>
+                                Delete
+                              </Text>
+                            </TouchableOpacity>
+                          </>
+                        )}
+                      </View>
+                      <Text style={styles.answerContent}>{answer.content}</Text>
+                      <View style={styles.answerFooter}>
+                        <Text style={styles.answerDate}>
+                          {formatDate(answer.createdAt)}
                         </Text>
                       </View>
                       {isAnswerAuthor && (
-                        <TouchableOpacity
-                          onPress={() => handleDeleteAnswer(answer.id)}
-                        >
-                          <Text style={styles.deleteAnswerText}>Delete</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                    <Text style={styles.answerContent}>{answer.content}</Text>
-                    <View style={styles.answerFooter}>
-                      <Text style={styles.answerDate}>
-                        {formatDate(answer.createdAt)}
-                      </Text>
-                      {isAnswerAuthor && (
-                        <View style={styles.answerAuthorBadge}>
-                          <Text style={styles.answerAuthorBadgeText}>
-                            Your Answer
-                          </Text>
-                        </View>
+                        <Text style={styles.cannotVoteAnswerText}>
+                          You cannot vote on your own answer
+                        </Text>
                       )}
                     </View>
                   </View>
@@ -745,6 +865,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   answerCard: {
+    flexDirection: "row",
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#e0e0e0",
@@ -752,22 +873,57 @@ const styles = StyleSheet.create({
     padding: 15,
     marginBottom: 15,
   },
+  answerVotingSection: {
+    alignItems: "center",
+    marginRight: 15,
+    paddingRight: 15,
+    borderRightWidth: 1,
+    borderRightColor: "#e0e0e0",
+  },
+  answerVoteButton: {
+    width: 35,
+    height: 35,
+    borderRadius: 18,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#ddd",
+    marginVertical: 4,
+  },
+  answerVoteButtonActive: {
+    backgroundColor: "#4CAF50",
+    borderColor: "#4CAF50",
+  },
+  answerVoteButtonActiveDown: {
+    backgroundColor: "#ff4444",
+    borderColor: "#ff4444",
+  },
+  answerVoteButtonText: {
+    fontSize: 18,
+    color: "#666",
+    fontWeight: "bold",
+  },
+  answerVoteButtonTextActive: {
+    color: "#fff",
+  },
+  answerVoteButtonTextActiveDown: {
+    color: "#fff",
+  },
+  answerVotesCount: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#333",
+    marginVertical: 8,
+  },
+  answerMainContent: {
+    flex: 1,
+  },
   answerHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 12,
-  },
-  answerVotes: {
-    backgroundColor: "#4CAF50",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  answerVotesText: {
-    color: "#fff",
-    fontSize: 13,
-    fontWeight: "bold",
   },
   deleteAnswerText: {
     color: "#ff4444",
@@ -781,9 +937,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   answerFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: "#f0f0f0",
@@ -802,5 +955,11 @@ const styles = StyleSheet.create({
     color: "#1976D2",
     fontSize: 11,
     fontWeight: "600",
+  },
+  cannotVoteAnswerText: {
+    fontSize: 11,
+    color: "#ff9800",
+    marginTop: 8,
+    fontStyle: "italic",
   },
 });
