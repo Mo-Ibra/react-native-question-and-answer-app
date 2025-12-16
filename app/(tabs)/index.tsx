@@ -1,11 +1,11 @@
 import { useAuth } from "@/context/AuthContext";
 import { logout } from "@/services/authServices";
 import {
-  deleteQuestion,
   getAllQuestions,
+  deleteQuestion,
   Question,
 } from "@/services/questionServices";
-import { Redirect } from "expo-router";
+import { Redirect, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   Button,
@@ -20,6 +20,7 @@ import {
 
 export default function Index() {
   const { user, profile, loading } = useAuth();
+  const router = useRouter();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loadingQuestions, setLoadingQuestions] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -50,28 +51,6 @@ export default function Index() {
     fetchQuestions();
   };
 
-  // حذف سؤال
-  const handleDelete = async (questionId: string) => {
-    if (!user) return;
-
-    Alert.alert("Delete Question", "Are you sure you want to delete this question?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteQuestion(questionId, user.uid);
-            Alert.alert("Success", "Question deleted successfully");
-            fetchQuestions();
-          } catch (error: any) {
-            Alert.alert("Error", error.message);
-          }
-        },
-      },
-    ]);
-  };
-
   if (loading) {
     return (
       <View style={styles.container}>
@@ -84,9 +63,10 @@ export default function Index() {
     return <Redirect href="/sign-in" />;
   }
 
+  const isYourQuestion = (question: Question) => question.authorId === user.uid;
+
   return (
     <View style={styles.container}>
-
       {/* معلومات المستخدم */}
       <View style={styles.header}>
         <Text style={styles.email}>{user.email}</Text>
@@ -96,7 +76,15 @@ export default function Index() {
 
       {/* قائمة الأسئلة */}
       <View style={styles.questionsContainer}>
-        <Text style={styles.title}>All Questions</Text>
+        <View style={styles.questionsHeader}>
+          <Text style={styles.title}>All Questions</Text>
+          <TouchableOpacity
+            style={styles.createButton}
+            onPress={() => router.push("/create-question")}
+          >
+            <Text style={styles.createButtonText}>+ New Question</Text>
+          </TouchableOpacity>
+        </View>
 
         {loadingQuestions ? (
           <Text>Loading questions...</Text>
@@ -108,23 +96,24 @@ export default function Index() {
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
             renderItem={({ item }) => (
-              <View style={styles.questionCard}>
+              <TouchableOpacity
+                style={styles.questionCard}
+                onPress={() => router.push(`/question/${item.id}`)}
+                activeOpacity={0.7}
+              >
                 <Text style={styles.questionTitle}>{item.title}</Text>
                 <Text style={styles.questionContent} numberOfLines={2}>
                   {item.content}
                 </Text>
                 <View style={styles.questionFooter}>
                   <Text style={styles.votes}>Votes: {item.votes}</Text>
-                  {item.authorId === user.uid && (
-                    <TouchableOpacity
-                      onPress={() => handleDelete(item.id)}
-                      style={styles.deleteButton}
-                    >
-                      <Text style={styles.deleteText}>Delete</Text>
-                    </TouchableOpacity>
+                  {isYourQuestion(item) && (
+                    <View style={styles.authorBadgeSmall}>
+                      <Text style={styles.authorBadgeText}>Your Question</Text>
+                    </View>
                   )}
                 </View>
-              </View>
+              </TouchableOpacity>
             )}
             ListEmptyComponent={
               <Text style={styles.emptyText}>No questions yet</Text>
@@ -160,10 +149,26 @@ const styles = StyleSheet.create({
   questionsContainer: {
     flex: 1,
   },
+  questionsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 15,
+  },
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 15,
+  },
+  createButton: {
+    backgroundColor: "#4CAF50",
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  createButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 14,
   },
   questionCard: {
     backgroundColor: "#f9f9f9",
@@ -192,15 +197,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#888",
   },
-  deleteButton: {
-    backgroundColor: "#ff4444",
-    paddingHorizontal: 15,
-    paddingVertical: 5,
-    borderRadius: 5,
+  authorBadgeSmall: {
+    backgroundColor: "#e3f2fd",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 4,
   },
-  deleteText: {
-    color: "#fff",
-    fontWeight: "bold",
+  authorBadgeText: {
+    color: "#2196F3",
+    fontSize: 12,
+    fontWeight: "600",
   },
   emptyText: {
     textAlign: "center",
@@ -209,5 +215,3 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
-
-// @ts-ignore: getReactNativePersistence exists in the RN bundle 
