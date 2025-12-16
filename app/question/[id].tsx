@@ -1,11 +1,14 @@
 import { useAuth } from "@/context/AuthContext";
+import { db } from "@/lib/firebase";
 import { formatDate } from "@/lib/helper";
 import {
   Question,
   deleteQuestion,
   getQuestionById,
 } from "@/services/questionServices";
+import { voteQuestion } from "@/services/questionVotesServices";
 import { router, useLocalSearchParams } from "expo-router";
+import { doc, onSnapshot } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -14,7 +17,7 @@ import {
   Text,
   TouchableOpacity,
   View,
-  StyleSheet
+  StyleSheet,
 } from "react-native";
 
 export default function QuestionDetail() {
@@ -22,6 +25,9 @@ export default function QuestionDetail() {
   const { user } = useAuth();
   const [question, setQuestion] = useState<Question | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const [userVote, setUserVote] = useState<1 | -1 | null>(null);
+  const [voting, setVoting] = useState(false);
 
   const fetchQuestion = async () => {
     try {
@@ -37,11 +43,74 @@ export default function QuestionDetail() {
       setLoading(false);
     }
   };
+
   useEffect(() => {
     fetchQuestion();
   }, [id]);
 
+  // Listen to user's vote in real-time
+  // When a user votes, update the button
+  useEffect(() => {
+    if (!user || !id) return;
+
+    const voteRef = doc(db, "questions", id as string, "votes", user.uid);
+
+    const unsubscribe = onSnapshot(voteRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setUserVote(snapshot.data().value);
+      } else {
+        setUserVote(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [id, user]);
+
+  // Listen to question votes in real-time
+  // When a user votes, update the question votes count
+  useEffect(() => {
+    if (!id) return;
+
+    const questionRef = doc(db, "questions", id as string);
+    const unsubscribe = onSnapshot(questionRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setQuestion((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            votes: snapshot.data().votes || 0,
+          };
+        });
+      }
+    });
+
+    return () => unsubscribe();
+  }, [id]);
+
   const isAuthor = question?.authorId === user?.uid;
+
+  const handleVote = async (value: 1 | -1) => {
+    if (!user || !question) {
+      Alert.alert("Error", "You must be logged in to vote");
+      return;
+    }
+
+    if (isAuthor) {
+      Alert.alert("Error", "You cannot vote on your own question");
+      return;
+    }
+
+    try {
+      setVoting(true);
+
+      await voteQuestion(question.id, user.uid, question.authorId, value);
+    } catch (error: any) {
+      Alert.alert("Error", error.message || "Failed to vote");
+      console.log(error);
+    } finally {
+      setVoting(false);
+    }
+  };
 
   const handleEdit = () => {
     router.push(`/edit-question/${id}`);
@@ -116,6 +185,58 @@ export default function QuestionDetail() {
           <Text style={styles.title}>{question.title}</Text>
         </View>
 
+        {/* Voting Section */}
+        <View style={styles.votingContainer}>
+          <TouchableOpacity
+            style={[
+              styles.voteButton,
+              userVote === 1 && styles.voteButtonActive,
+              voting && styles.voteButtonDisabled,
+            ]}
+            onPress={() => handleVote(1)}
+            disabled={voting || isAuthor}
+          >
+            <Text
+              style={[
+                styles.voteButtonText,
+                userVote === 1 && styles.voteButtonTextActive,
+              ]}
+            >
+              ▲
+            </Text>
+          </TouchableOpacity>
+
+          <View style={styles.votesDisplayContainer}>
+            <Text style={styles.votesDisplay}>{question.votes}</Text>
+            <Text style={styles.votesLabel}>votes</Text>
+          </View>
+
+          <TouchableOpacity
+            style={[
+              styles.voteButton,
+              userVote === -1 && styles.voteButtonActiveDown,
+              voting && styles.voteButtonDisabled,
+            ]}
+            onPress={() => handleVote(-1)}
+            disabled={voting || isAuthor}
+          >
+            <Text
+              style={[
+                styles.voteButtonText,
+                userVote === -1 && styles.voteButtonTextActiveDown,
+              ]}
+            >
+              ▼
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {isAuthor && (
+          <Text style={styles.cannotVoteText}>
+            You cannot vote on your own question
+          </Text>
+        )}
+
         {/* Metadata */}
         <View style={styles.metadataContainer}>
           <View style={styles.metadataItem}>
@@ -126,7 +247,7 @@ export default function QuestionDetail() {
           </View>
           <View style={styles.metadataItem}>
             <Text style={styles.metadataLabel}>Votes:</Text>
-            <Text style={styles.votesValue}>{question.votes}</Text>
+            <Text style={styles.metadataValue}>{question.votes}</Text>
           </View>
         </View>
 
@@ -210,6 +331,75 @@ const styles = StyleSheet.create({
     color: "#333",
     lineHeight: 36,
   },
+  votingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 15,
+    padding: 20,
+    backgroundColor: "#f9f9f9",
+    borderRadius: 12,
+  },
+  voteButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#ddd",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  voteButtonActive: {
+    backgroundColor: "#4CAF50",
+    borderColor: "#4CAF50",
+  },
+  voteButtonActiveDown: {
+    backgroundColor: "#ff4444",
+    borderColor: "#ff4444",
+  },
+  voteButtonDisabled: {
+    opacity: 0.5,
+  },
+  voteButtonText: {
+    fontSize: 24,
+    color: "#666",
+    fontWeight: "bold",
+  },
+  voteButtonTextActive: {
+    color: "#fff",
+  },
+  voteButtonTextActiveDown: {
+    color: "#fff",
+  },
+  votesDisplayContainer: {
+    marginHorizontal: 25,
+    alignItems: "center",
+  },
+  votesDisplay: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  votesLabel: {
+    fontSize: 12,
+    color: "#999",
+    marginTop: 4,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  cannotVoteText: {
+    textAlign: "center",
+    color: "#ff9800",
+    fontSize: 12,
+    marginBottom: 15,
+    fontStyle: "italic",
+  },
   metadataContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -232,11 +422,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
     fontWeight: "500",
-  },
-  votesValue: {
-    fontSize: 20,
-    color: "#4CAF50",
-    fontWeight: "bold",
   },
   contentContainer: {
     marginBottom: 20,
