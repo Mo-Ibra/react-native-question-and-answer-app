@@ -1,50 +1,136 @@
-# Welcome to your Expo app 👋
+# 📱 Q&A App – React Native + Firebase
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A modern **Questions & Answers mobile application** built with **React Native (Expo)** and **Firebase**, inspired by platforms like Stack Overflow.
 
-## Get started
+This project focuses on **clean architecture**, **real-time updates**, and a **coin-based reward system**, making it a scalable and production-ready mobile app.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## 🚀 Features
 
-2. Start the app
+- 🔐 User authentication using Firebase Auth  
+- ❓ Create, edit, and delete questions  
+- 💬 Post answers with coin validation  
+- 👍👎 Vote on questions and answers (real-time)  
+- 💰 Coins & rewards system  
+- ⚡ Real-time updates using Firestore listeners  
+- 🧠 Optimized data fetching with caching  
+- 🧩 Clean and reusable UI components  
+- 📱 Responsive and mobile-friendly design  
 
-   ```bash
-   npx expo start
-   ```
+---
 
-In the output, you'll find options to open the app in a
+## 🛠 Tech Stack
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- **React Native (Expo)**
+- **TypeScript**
+- **Firebase**
+  - Authentication
+  - Firestore (real-time database)
+- **Expo Router**
+- **Custom React Hooks**
+- **Modular Service Layer**
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+---
 
-## Get a fresh project
+## 🧠 Architecture Overview
 
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+src/
+├── app/                # Pages (Expo Router)
+├── components/         # Reusable UI components
+├── hooks/              # Custom hooks (data, cache, real-time)
+├── services/           # Firebase logic & business rules
+├── context/            # Global app contexts (Auth)
+├── lib/                # Firebase config & helpers
+└── types/              # Shared TypeScript types
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### Key Architectural Decisions
+- Pages handle routing and high-level logic
+- Components are UI-only (no business logic)
+- Hooks manage data fetching, caching, and subscriptions
+- Services isolate Firebase operations
+- Real-time listeners are used without unnecessary re-fetching
 
-## Learn more
+---
 
-To learn more about developing your project with Expo, look at the following resources:
+## 💰 Coins System
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+- Users earn coins by receiving upvotes
+- Posting an answer costs coins
+- Voting affects the author's coin balance
+- All validations are enforced at the service level
 
-## Join the community
+---
 
-Join our community of developers creating universal apps.
+## ⚡ Real-Time Data
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- Question votes update instantly
+- Answer votes update instantly
+- Coin balance syncs automatically
+- Firestore onSnapshot listeners are optimized to avoid over-fetching
+
+---
+
+## 🧩 Custom Hooks
+
+- useAuth – Authentication & user state  
+- useQuestions – Questions list with caching & refresh  
+- useQuestion – Single question with real-time votes  
+- useAnswers – Answers, voting, and coin validation  
+- useQuestionVotes – User voting state  
+
+---
+
+## 📦 Installation & Setup
+
+### 1️⃣ Clone the repository
+```bash
+git clone https://github.com/Mo-Ibra/react-native-question-and-answer-app.git
+cd react-native-question-and-answer-app
+```
+
+### 2️⃣ Install dependencies
+```bash
+npm install
+```
+
+### 3️⃣ Configure Firebase
+Add your Firebase config in:
+
+```ts
+src/lib/firebase.ts
+```
+
+### 4️⃣ Run the app
+```bash
+npx expo start
+```
+
+---
+
+## 🧪 Future Improvements
+
+- Search & filtering
+- Pagination / infinite scrolling
+- Accepted answers
+- Notifications
+- Offline-first caching
+- Unit & integration tests
+
+---
+
+## 👨‍💻 Author
+
+**Mo Ibra**
+
+Full Stack Web/Mobile Developer
+
+---
+
+## 📄 License
+
+MIT License
+
+⭐ If you like this project, give it a star!
