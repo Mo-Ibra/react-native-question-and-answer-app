@@ -1,10 +1,10 @@
+import Appbar from "@/components/Appbar";
 import QuestionCard from "@/components/QuestionCard";
 import { useAuth } from "@/context/AuthContext";
 import { useQuestions } from "@/hooks/useQuestions";
 import { logout } from "@/services/authServices";
 import { Redirect, useRouter } from "expo-router";
 import {
-  Button,
   Text,
   View,
   FlatList,
@@ -38,14 +38,7 @@ export default function Index() {
 
   return (
     <View style={styles.container}>
-      {/* معلومات المستخدم */}
-      <View style={styles.header}>
-        <Text style={styles.email}>{user.email}</Text>
-        <Text style={styles.coins}>Coins: {profile?.coins || 0}</Text>
-        <Button title="Sign Out" onPress={() => logout()} />
-      </View>
-
-      {/* قائمة الأسئلة */}
+      <Appbar user={user} profile={profile} onLogout={() => logout()} />
       <View style={styles.questionsContainer}>
         <View style={styles.questionsHeader}>
           <Text style={styles.title}>All Questions</Text>
@@ -88,21 +81,6 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     backgroundColor: "#fff",
-  },
-  header: {
-    paddingVertical: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ccc",
-    marginBottom: 20,
-  },
-  email: {
-    fontSize: 16,
-    marginBottom: 5,
-  },
-  coins: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
   },
   questionsContainer: {
     flex: 1,
