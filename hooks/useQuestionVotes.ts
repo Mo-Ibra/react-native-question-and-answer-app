@@ -9,7 +9,7 @@ export function useQuestionVotes(
   authorId?: string
 ) {
   const [userVote, setUserVote] = useState<1 | -1 | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loadingVotes, setLoadingVotes] = useState(false);
 
   useEffect(() => {
     if (!uid || !questionId) return;
@@ -24,10 +24,10 @@ export function useQuestionVotes(
   const vote = async (value: 1 | -1) => {
     if (!questionId || !uid || !authorId) return;
 
-    setLoading(true);
+    setLoadingVotes(true);
     await voteQuestion(questionId, uid, authorId, value);
-    setLoading(false);
+    setLoadingVotes(false);
   };
 
-  return { userVote, vote, loading };
+  return { userVote, vote, loadingVotes };
 }

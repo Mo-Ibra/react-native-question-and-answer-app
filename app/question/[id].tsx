@@ -5,6 +5,9 @@ import QuestionMetaData from "@/components/QuestionMetadata";
 import QuestionTitle from "@/components/QuestionTitle";
 import VotingSection from "@/components/VotingSection";
 import { useAuth } from "@/context/AuthContext";
+import { useAnswers } from "@/hooks/useAnswers";
+import { useQuestion } from "@/hooks/useQuestion";
+import { useQuestionVotes } from "@/hooks/useQuestionVotes";
 import { db } from "@/lib/firebase";
 import {
   Answer,
@@ -13,7 +16,7 @@ import {
   deleteAnswer,
   getQuestionAnswers,
 } from "@/services/answerServices";
-import { voteAnswer } from "@/services/answerVoteServices";
+// import { voteAnswer } from "@/services/answerVoteServices";
 import {
   Question,
   deleteQuestion,
@@ -37,140 +40,33 @@ import {
 export default function QuestionDetail() {
   const { id } = useLocalSearchParams();
   const { user } = useAuth();
-  const [question, setQuestion] = useState<Question | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [userVote, setUserVote] = useState<1 | -1 | null>(null);
-  const [voting, setVoting] = useState(false);
+
+  const { question, loading } = useQuestion(id as string);
+
+  const {
+    userVote,
+    loadingVotes,
+    vote,
+  } = useQuestionVotes(question?.id, user?.uid, question?.authorId);
 
   // Answers stats
-  const [answers, setAnswers] = useState<Answer[]>([]);
   const [loadingAnswers, setLoadingAnswers] = useState(false);
+
   const [submittingAnswer, setSubmittingAnswer] = useState(false);
-  const [canAffordAnswer, setCanAffordAnswer] = useState(true);
+
   const [answerContent, setAnswerContent] = useState("");
 
-  // Answer votes state
-  const [answerVotes, setAnswerVotes] = useState<Record<string, 1 | -1 | null>>(
-    {}
-  );
+  const {
+    answers,
+    answerVotes,
+    submitAnswer,
+    vote: voteAnswer,
+    canAfford,
+  } = useAnswers(question?.id, user?.uid);
+
   const [votingAnswers, setVotingAnswers] = useState<Record<string, boolean>>(
     {}
   );
-
-  const fetchQuestion = async () => {
-    try {
-      setLoading(true);
-      const q = await getQuestionById(id as string);
-      if (q) {
-        setQuestion(q);
-      }
-    } catch (err) {
-      Alert.alert("Error", "Failed to load question");
-      router.back();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchAnswers = async () => {
-    try {
-      setLoadingAnswers(true);
-      const fetchedAnswers = await getQuestionAnswers(id as string);
-      setAnswers(fetchedAnswers);
-    } catch (error) {
-    } finally {
-      setLoadingAnswers(false);
-    }
-  };
-
-  const checkUserCoins = async () => {
-    if (!user) return;
-    const canAfford = await canUserAnswer(user.uid);
-    setCanAffordAnswer(canAfford);
-  };
-
-  useEffect(() => {
-    fetchQuestion();
-    fetchAnswers();
-    checkUserCoins();
-  }, [id]);
-
-  // Listen to user's vote in real-time
-  // When a user votes, update the button
-  useEffect(() => {
-    if (!user || !id) return;
-
-    const voteRef = doc(db, "questions", id as string, "votes", user.uid);
-
-    const unsubscribe = onSnapshot(voteRef, (snapshot) => {
-      if (snapshot.exists()) {
-        setUserVote(snapshot.data().value);
-      } else {
-        setUserVote(null);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [id, user]);
-
-  // Listen to question votes in real-time
-  // When a user votes, update the question votes count
-  useEffect(() => {
-    if (!id) return;
-
-    const questionRef = doc(db, "questions", id as string);
-    const unsubscribe = onSnapshot(questionRef, (snapshot) => {
-      if (snapshot.exists()) {
-        setQuestion((prev) => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            votes: snapshot.data().votes || 0,
-          };
-        });
-      }
-    });
-
-    return () => unsubscribe();
-  }, [id]);
-
-  // Listen to answers in real-time
-  useEffect(() => {
-    if (!id) return;
-    const answersRef = collection(db, "questions", id as string, "answers");
-    const unsubscribe = onSnapshot(answersRef, () => {
-      fetchAnswers();
-    });
-    return () => unsubscribe();
-  }, [id]);
-
-  // Listen to user's votes on answers in real-time
-  useEffect(() => {
-    if (!user || !id || answers.length === 0) return;
-
-    const unsubscribes = answers.map((answer) => {
-      const voteRef = doc(
-        db,
-        "questions",
-        id as string,
-        "answers",
-        answer.id,
-        "votes",
-        user.uid
-      );
-
-      return onSnapshot(voteRef, (snapshot) => {
-        setAnswerVotes((prev) => ({
-          ...prev,
-          [answer.id]: snapshot.exists() ? snapshot.data().value : null,
-        }));
-      });
-    });
-
-    return () => {
-      unsubscribes.forEach((unsubscribe) => unsubscribe());
-    };
-  }, [id, user, answers.length]);
 
   const isAuthor = question?.authorId === user?.uid;
 
@@ -186,14 +82,10 @@ export default function QuestionDetail() {
     }
 
     try {
-      setVoting(true);
-
-      await voteQuestion(question.id, user.uid, question.authorId, value);
+      await vote(value);
     } catch (error: any) {
       Alert.alert("Error", error.message || "Failed to vote");
       console.log(error);
-    } finally {
-      setVoting(false);
     }
   };
 
@@ -210,13 +102,7 @@ export default function QuestionDetail() {
 
     try {
       setVotingAnswers((prev) => ({ ...prev, [answer.id]: true }));
-      await voteAnswer(
-        question.id,
-        answer.id,
-        user.uid,
-        answer.authorId,
-        value
-      );
+      await voteAnswer(answer, value, question.authorId);
     } catch (error: any) {
       Alert.alert("Error", error.message || "Failed to vote");
     } finally {
@@ -235,7 +121,7 @@ export default function QuestionDetail() {
       return;
     }
 
-    if (!canAffordAnswer) {
+    if (!canAfford) {
       Alert.alert(
         "Not Enough Coins",
         "You need 10 coins to post an answer. Earn more coins by getting upvotes on your questions!"
@@ -244,11 +130,7 @@ export default function QuestionDetail() {
     }
 
     try {
-      setSubmittingAnswer(true);
-      await createAnswer(question.id, user.uid, answerContent);
-      setAnswerContent("");
-      Alert.alert("Success", "Your answer has been posted!");
-      checkUserCoins();
+      await submitAnswer(answerContent);
     } catch (error: any) {
       if (error.message === "NOT_ENOUGH_COINS") {
         Alert.alert(
@@ -359,7 +241,7 @@ export default function QuestionDetail() {
           <VotingSection
             question={question}
             userVote={userVote}
-            voting={voting}
+            voting={loadingVotes}
             isAuthor={isAuthor}
             handleVote={handleVote}
           />
@@ -382,7 +264,7 @@ export default function QuestionDetail() {
           <AnswerSection
             user={user}
             answers={answers}
-            canAffordAnswer={canAffordAnswer}
+            canAffordAnswer={canAfford}
             answerContent={answerContent}
             setAnswerContent={setAnswerContent}
             submittingAnswer={submittingAnswer}
