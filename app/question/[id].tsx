@@ -1,6 +1,11 @@
+import AnswerSection from "@/components/AnswerSection";
+import QuestionContent from "@/components/QuestionContent";
+import QuestionHeaderWithActions from "@/components/QuestionHeaderWithActions";
+import QuestionMetaData from "@/components/QuestionMetadata";
+import QuestionTitle from "@/components/QuestionTitle";
+import VotingSection from "@/components/VotingSection";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
-import { formatDate } from "@/lib/helper";
 import {
   Answer,
   canUserAnswer,
@@ -23,12 +28,10 @@ import {
   Alert,
   ScrollView,
   Text,
-  TouchableOpacity,
   View,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  TextInput,
 } from "react-native";
 
 export default function QuestionDetail() {
@@ -42,9 +45,9 @@ export default function QuestionDetail() {
   // Answers stats
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [loadingAnswers, setLoadingAnswers] = useState(false);
-  const [answerContent, setAnswerContent] = useState("");
   const [submittingAnswer, setSubmittingAnswer] = useState(false);
   const [canAffordAnswer, setCanAffordAnswer] = useState(true);
+  const [answerContent, setAnswerContent] = useState("");
 
   // Answer votes state
   const [answerVotes, setAnswerVotes] = useState<Record<string, 1 | -1 | null>>(
@@ -343,69 +346,23 @@ export default function QuestionDetail() {
         <View style={styles.content}>
           {/* Header with actions */}
           {isAuthor && (
-            <View style={styles.actionsContainer}>
-              <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
-                <Text style={styles.editButtonText}>Edit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={handleDelete}
-              >
-                <Text style={styles.deleteButtonText}>Delete</Text>
-              </TouchableOpacity>
-            </View>
+            <QuestionHeaderWithActions
+              handleEdit={handleEdit}
+              handleDelete={handleDelete}
+            />
           )}
 
           {/* Question Title */}
-          <View style={styles.titleContainer}>
-            <Text style={styles.title}>{question.title}</Text>
-          </View>
+          <QuestionTitle question={question} />
 
           {/* Voting Section */}
-          <View style={styles.votingContainer}>
-            <TouchableOpacity
-              style={[
-                styles.voteButton,
-                userVote === 1 && styles.voteButtonActive,
-                voting && styles.voteButtonDisabled,
-              ]}
-              onPress={() => handleVote(1)}
-              disabled={voting || isAuthor}
-            >
-              <Text
-                style={[
-                  styles.voteButtonText,
-                  userVote === 1 && styles.voteButtonTextActive,
-                ]}
-              >
-                ▲
-              </Text>
-            </TouchableOpacity>
-
-            <View style={styles.votesDisplayContainer}>
-              <Text style={styles.votesDisplay}>{question.votes}</Text>
-              <Text style={styles.votesLabel}>votes</Text>
-            </View>
-
-            <TouchableOpacity
-              style={[
-                styles.voteButton,
-                userVote === -1 && styles.voteButtonActiveDown,
-                voting && styles.voteButtonDisabled,
-              ]}
-              onPress={() => handleVote(-1)}
-              disabled={voting || isAuthor}
-            >
-              <Text
-                style={[
-                  styles.voteButtonText,
-                  userVote === -1 && styles.voteButtonTextActiveDown,
-                ]}
-              >
-                ▼
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <VotingSection
+            question={question}
+            userVote={userVote}
+            voting={voting}
+            isAuthor={isAuthor}
+            handleVote={handleVote}
+          />
 
           {isAuthor && (
             <Text style={styles.cannotVoteText}>
@@ -414,188 +371,28 @@ export default function QuestionDetail() {
           )}
 
           {/* Metadata */}
-          <View style={styles.metadataContainer}>
-            <View style={styles.metadataItem}>
-              <Text style={styles.metadataLabel}>Posted:</Text>
-              <Text style={styles.metadataValue}>
-                {formatDate(question.createdAt)}
-              </Text>
-            </View>
-            <View style={styles.metadataItem}>
-              <Text style={styles.metadataLabel}>Answers:</Text>
-              <Text style={styles.metadataValue}>{answers.length}</Text>
-            </View>
-          </View>
+          <QuestionMetaData
+            question={question}
+            answersLength={answers.length}
+          />
 
-          {/* Question Content */}
-          <View style={styles.contentContainer}>
-            <Text style={styles.contentLabel}>Question Details:</Text>
-            <Text style={styles.contentText}>{question.content}</Text>
-          </View>
-
-          {/* Author Badge */}
-          {isAuthor && (
-            <View style={styles.authorBadge}>
-              <Text style={styles.authorBadgeText}>You are the author</Text>
-            </View>
-          )}
+          <QuestionContent question={question} isAuthor={isAuthor} />
 
           {/* Answers Section */}
-          <View style={styles.answersSection}>
-            <View style={styles.answersSectionHeader}>
-              <Text style={styles.answersSectionTitle}>
-                Answers ({answers.length})
-              </Text>
-            </View>
-
-            {/* Answer Input */}
-            {user && (
-              <View style={styles.answerInputContainer}>
-                <Text style={styles.answerInputLabel}>
-                  Your Answer (Costs 10 coins)
-                </Text>
-                {!canAffordAnswer && (
-                  <Text style={styles.notEnoughCoinsText}>
-                    ⚠️ You don't have enough coins. Earn coins by getting
-                    upvotes!
-                  </Text>
-                )}
-                <TextInput
-                  style={styles.answerInput}
-                  placeholder="Write your answer here..."
-                  multiline
-                  numberOfLines={4}
-                  value={answerContent}
-                  onChangeText={setAnswerContent}
-                  editable={!submittingAnswer}
-                />
-                <TouchableOpacity
-                  style={[
-                    styles.submitAnswerButton,
-                    (!canAffordAnswer || submittingAnswer) &&
-                      styles.submitAnswerButtonDisabled,
-                  ]}
-                  onPress={handleSubmitAnswer}
-                  disabled={!canAffordAnswer || submittingAnswer}
-                >
-                  {submittingAnswer ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text style={styles.submitAnswerButtonText}>
-                      Post Answer
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Answers List */}
-            {loadingAnswers ? (
-              <View style={styles.loadingAnswersContainer}>
-                <ActivityIndicator size="small" color="#4CAF50" />
-                <Text style={styles.loadingAnswersText}>
-                  Loading answers...
-                </Text>
-              </View>
-            ) : answers.length === 0 ? (
-              <View style={styles.noAnswersContainer}>
-                <Text style={styles.noAnswersText}>
-                  No answers yet. Be the first to answer!
-                </Text>
-              </View>
-            ) : (
-              answers.map((answer) => {
-                const isAnswerAuthor = answer.authorId === user?.uid;
-                const userAnswerVote = answerVotes[answer.id] || null;
-                const isVotingThisAnswer = votingAnswers[answer.id] || false;
-
-                return (
-                  <View key={answer.id} style={styles.answerCard}>
-                    {/* Answer Voting Section */}
-                    <View style={styles.answerVotingSection}>
-                      <TouchableOpacity
-                        style={[
-                          styles.answerVoteButton,
-                          userAnswerVote === 1 && styles.answerVoteButtonActive,
-                          isVotingThisAnswer && styles.voteButtonDisabled,
-                        ]}
-                        onPress={() => handleAnswerVote(answer, 1)}
-                        disabled={isVotingThisAnswer || isAnswerAuthor}
-                      >
-                        <Text
-                          style={[
-                            styles.answerVoteButtonText,
-                            userAnswerVote === 1 &&
-                              styles.answerVoteButtonTextActive,
-                          ]}
-                        >
-                          ▲
-                        </Text>
-                      </TouchableOpacity>
-
-                      <Text style={styles.answerVotesCount}>
-                        {answer.votes}
-                      </Text>
-
-                      <TouchableOpacity
-                        style={[
-                          styles.answerVoteButton,
-                          userAnswerVote === -1 &&
-                            styles.answerVoteButtonActiveDown,
-                          isVotingThisAnswer && styles.voteButtonDisabled,
-                        ]}
-                        onPress={() => handleAnswerVote(answer, -1)}
-                        disabled={isVotingThisAnswer || isAnswerAuthor}
-                      >
-                        <Text
-                          style={[
-                            styles.answerVoteButtonText,
-                            userAnswerVote === -1 &&
-                              styles.answerVoteButtonTextActiveDown,
-                          ]}
-                        >
-                          ▼
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-
-                    {/* Answer Content */}
-                    <View style={styles.answerMainContent}>
-                      <View style={styles.answerHeader}>
-                        {isAnswerAuthor && (
-                          <>
-                            <View style={styles.answerAuthorBadge}>
-                              <Text style={styles.answerAuthorBadgeText}>
-                                Your Answer
-                              </Text>
-                            </View>
-                            <TouchableOpacity
-                              onPress={() => handleDeleteAnswer(answer.id)}
-                            >
-                              <Text style={styles.deleteAnswerText}>
-                                Delete
-                              </Text>
-                            </TouchableOpacity>
-                          </>
-                        )}
-                      </View>
-                      <Text style={styles.answerContent}>{answer.content}</Text>
-                      <View style={styles.answerFooter}>
-                        <Text style={styles.answerDate}>
-                          {formatDate(answer.createdAt)}
-                        </Text>
-                      </View>
-                      {isAnswerAuthor && (
-                        <Text style={styles.cannotVoteAnswerText}>
-                          You cannot vote on your own answer
-                        </Text>
-                      )}
-                    </View>
-                  </View>
-                );
-              })
-            )}
-          </View>
+          <AnswerSection
+            user={user}
+            answers={answers}
+            canAffordAnswer={canAffordAnswer}
+            answerContent={answerContent}
+            setAnswerContent={setAnswerContent}
+            submittingAnswer={submittingAnswer}
+            handleSubmitAnswer={handleSubmitAnswer}
+            handleAnswerVote={handleAnswerVote}
+            handleDeleteAnswer={handleDeleteAnswer}
+            loadingAnswers={loadingAnswers}
+            answerVotes={answerVotes}
+            votingAnswers={votingAnswers}
+          />
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -625,341 +422,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#ff4444",
   },
-  actionsContainer: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: 10,
-    marginBottom: 20,
-  },
-  editButton: {
-    backgroundColor: "#2196F3",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  editButtonText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 14,
-  },
-  deleteButton: {
-    backgroundColor: "#ff4444",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  deleteButtonText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 14,
-  },
-  titleContainer: {
-    marginBottom: 20,
-    paddingBottom: 15,
-    borderBottomWidth: 2,
-    borderBottomColor: "#4CAF50",
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#333",
-    lineHeight: 36,
-  },
-  votingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 15,
-    padding: 20,
-    backgroundColor: "#f9f9f9",
-    borderRadius: 12,
-  },
-  voteButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#fff",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#ddd",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  voteButtonActive: {
-    backgroundColor: "#4CAF50",
-    borderColor: "#4CAF50",
-  },
-  voteButtonActiveDown: {
-    backgroundColor: "#ff4444",
-    borderColor: "#ff4444",
-  },
-  voteButtonDisabled: {
-    opacity: 0.5,
-  },
-  voteButtonText: {
-    fontSize: 24,
-    color: "#666",
-    fontWeight: "bold",
-  },
-  voteButtonTextActive: {
-    color: "#fff",
-  },
-  voteButtonTextActiveDown: {
-    color: "#fff",
-  },
-  votesDisplayContainer: {
-    marginHorizontal: 25,
-    alignItems: "center",
-  },
-  votesDisplay: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  votesLabel: {
-    fontSize: 12,
-    color: "#999",
-    marginTop: 4,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
   cannotVoteText: {
     textAlign: "center",
     color: "#ff9800",
     fontSize: 12,
     marginBottom: 15,
-    fontStyle: "italic",
-  },
-  metadataContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 25,
-    padding: 15,
-    backgroundColor: "#f9f9f9",
-    borderRadius: 8,
-  },
-  metadataItem: {
-    flex: 1,
-  },
-  metadataLabel: {
-    fontSize: 12,
-    color: "#999",
-    marginBottom: 4,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  metadataValue: {
-    fontSize: 14,
-    color: "#666",
-    fontWeight: "500",
-  },
-  contentContainer: {
-    marginBottom: 20,
-  },
-  contentLabel: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 12,
-  },
-  contentText: {
-    fontSize: 16,
-    color: "#555",
-    lineHeight: 26,
-    textAlign: "justify",
-  },
-  authorBadge: {
-    backgroundColor: "#e3f2fd",
-    padding: 12,
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: "#2196F3",
-    marginTop: 20,
-  },
-  authorBadgeText: {
-    color: "#1976D2",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  answersSection: {
-    marginTop: 30,
-    paddingTop: 30,
-    borderTopWidth: 2,
-    borderTopColor: "#e0e0e0",
-  },
-  answersSectionHeader: {
-    marginBottom: 20,
-  },
-  answersSectionTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  answerInputContainer: {
-    marginBottom: 30,
-    padding: 15,
-    backgroundColor: "#f9f9f9",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-  },
-  answerInputLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 10,
-  },
-  notEnoughCoinsText: {
-    fontSize: 13,
-    color: "#ff9800",
-    marginBottom: 10,
-    fontWeight: "500",
-  },
-  answerInput: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 15,
-    minHeight: 100,
-    textAlignVertical: "top",
-    marginBottom: 12,
-  },
-  submitAnswerButton: {
-    backgroundColor: "#4CAF50",
-    padding: 15,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  submitAnswerButtonDisabled: {
-    backgroundColor: "#ccc",
-  },
-  submitAnswerButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  loadingAnswersContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 20,
-  },
-  loadingAnswersText: {
-    marginLeft: 10,
-    fontSize: 14,
-    color: "#666",
-  },
-  noAnswersContainer: {
-    padding: 30,
-    alignItems: "center",
-  },
-  noAnswersText: {
-    fontSize: 16,
-    color: "#999",
-    textAlign: "center",
-  },
-  answerCard: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 15,
-  },
-  answerVotingSection: {
-    alignItems: "center",
-    marginRight: 15,
-    paddingRight: 15,
-    borderRightWidth: 1,
-    borderRightColor: "#e0e0e0",
-  },
-  answerVoteButton: {
-    width: 35,
-    height: 35,
-    borderRadius: 18,
-    backgroundColor: "#fff",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#ddd",
-    marginVertical: 4,
-  },
-  answerVoteButtonActive: {
-    backgroundColor: "#4CAF50",
-    borderColor: "#4CAF50",
-  },
-  answerVoteButtonActiveDown: {
-    backgroundColor: "#ff4444",
-    borderColor: "#ff4444",
-  },
-  answerVoteButtonText: {
-    fontSize: 18,
-    color: "#666",
-    fontWeight: "bold",
-  },
-  answerVoteButtonTextActive: {
-    color: "#fff",
-  },
-  answerVoteButtonTextActiveDown: {
-    color: "#fff",
-  },
-  answerVotesCount: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-    marginVertical: 8,
-  },
-  answerMainContent: {
-    flex: 1,
-  },
-  answerHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  deleteAnswerText: {
-    color: "#ff4444",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  answerContent: {
-    fontSize: 15,
-    color: "#555",
-    lineHeight: 24,
-    marginBottom: 12,
-  },
-  answerFooter: {
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
-  },
-  answerDate: {
-    fontSize: 12,
-    color: "#999",
-  },
-  answerAuthorBadge: {
-    backgroundColor: "#e3f2fd",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  answerAuthorBadgeText: {
-    color: "#1976D2",
-    fontSize: 11,
-    fontWeight: "600",
-  },
-  cannotVoteAnswerText: {
-    fontSize: 11,
-    color: "#ff9800",
-    marginTop: 8,
     fontStyle: "italic",
   },
 });
