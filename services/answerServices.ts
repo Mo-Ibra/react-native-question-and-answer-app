@@ -182,7 +182,6 @@ export async function canUserAnswer(uid: string): Promise<boolean> {
     return false;
   }
 }
-
 // Get answer count for a question
 export async function getAnswerCount(questionId: string): Promise<number> {
   try {
