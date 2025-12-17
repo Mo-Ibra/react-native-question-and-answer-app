@@ -1,4 +1,5 @@
 import AnswerSection from "@/components/AnswerSection";
+import Appbar from "@/components/Appbar";
 import QuestionContent from "@/components/QuestionContent";
 import QuestionHeaderWithActions from "@/components/QuestionHeaderWithActions";
 import QuestionMetaData from "@/components/QuestionMetadata";
@@ -8,13 +9,9 @@ import { useAuth } from "@/context/AuthContext";
 import { useAnswers } from "@/hooks/useAnswers";
 import { useQuestion } from "@/hooks/useQuestion";
 import { useQuestionVotes } from "@/hooks/useQuestionVotes";
-import {
-  Answer,
-  deleteAnswer,
-} from "@/services/answerServices";
-import {
-  deleteQuestion,
-} from "@/services/questionServices";
+import { Answer, deleteAnswer } from "@/services/answerServices";
+import { logout } from "@/services/authServices";
+import { deleteQuestion } from "@/services/questionServices";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
@@ -30,15 +27,15 @@ import {
 
 export default function QuestionDetail() {
   const { id } = useLocalSearchParams();
-  const { user } = useAuth();
+  const { user, profile, loading: loadingAuth } = useAuth();
 
   const { question, loading } = useQuestion(id as string);
 
-  const {
-    userVote,
-    loadingVotes,
-    vote,
-  } = useQuestionVotes(question?.id, user?.uid, question?.authorId);
+  const { userVote, loadingVotes, vote } = useQuestionVotes(
+    question?.id,
+    user?.uid,
+    question?.authorId
+  );
 
   const [submittingAnswer, setSubmittingAnswer] = useState(false);
 
@@ -50,7 +47,7 @@ export default function QuestionDetail() {
     submitAnswer,
     vote: voteAnswer,
     canAfford,
-    loadingAnswers
+    loadingAnswers,
   } = useAnswers(question?.id, user?.uid);
 
   const [votingAnswers, setVotingAnswers] = useState<Record<string, boolean>>(
@@ -214,6 +211,10 @@ export default function QuestionDetail() {
       style={{ flex: 1 }}
     >
       <ScrollView style={styles.container}>
+        <View style={{ padding: 20 }}>
+          <Appbar user={user} profile={profile} onLogout={() => logout()} />
+        </View>
+
         <View style={styles.content}>
           {/* Header with actions */}
           {isAuthor && (

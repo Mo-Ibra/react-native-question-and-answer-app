@@ -11,6 +11,7 @@ export default function QuestionTitle({ question }: { question: Question }) {
 
 const styles = StyleSheet.create({
   titleContainer: {
+    marginTop: 0,
     marginBottom: 20,
     paddingBottom: 15,
     borderBottomWidth: 2,
