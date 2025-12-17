@@ -15,6 +15,7 @@ export function useAnswers(questionId?: string, uid?: string) {
     {}
   );
   const [canAfford, setCanAfford] = useState(true);
+  const [loadingAnswers, setLoadingAnswers] = useState(true);
 
   // Get question answers
   useEffect(() => {
@@ -23,6 +24,7 @@ export function useAnswers(questionId?: string, uid?: string) {
     return onSnapshot(ref, async () => {
       const data = await getQuestionAnswers(questionId);
       setAnswers(data);
+      setLoadingAnswers(false);
     });
   }, [questionId]);
 
@@ -65,5 +67,5 @@ export function useAnswers(questionId?: string, uid?: string) {
     await voteAnswer(questionId, answer.id, uid, questionAuthorId, value);
   };
 
-  return { answers, answerVotes, submitAnswer, vote, canAfford };
+  return { answers, answerVotes, submitAnswer, vote, canAfford, loadingAnswers };
 }

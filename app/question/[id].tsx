@@ -8,24 +8,15 @@ import { useAuth } from "@/context/AuthContext";
 import { useAnswers } from "@/hooks/useAnswers";
 import { useQuestion } from "@/hooks/useQuestion";
 import { useQuestionVotes } from "@/hooks/useQuestionVotes";
-import { db } from "@/lib/firebase";
 import {
   Answer,
-  canUserAnswer,
-  createAnswer,
   deleteAnswer,
-  getQuestionAnswers,
 } from "@/services/answerServices";
-// import { voteAnswer } from "@/services/answerVoteServices";
 import {
-  Question,
   deleteQuestion,
-  getQuestionById,
 } from "@/services/questionServices";
-import { voteQuestion } from "@/services/questionVotesServices";
 import { router, useLocalSearchParams } from "expo-router";
-import { collection, doc, onSnapshot } from "firebase/firestore";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -49,9 +40,6 @@ export default function QuestionDetail() {
     vote,
   } = useQuestionVotes(question?.id, user?.uid, question?.authorId);
 
-  // Answers stats
-  const [loadingAnswers, setLoadingAnswers] = useState(false);
-
   const [submittingAnswer, setSubmittingAnswer] = useState(false);
 
   const [answerContent, setAnswerContent] = useState("");
@@ -62,6 +50,7 @@ export default function QuestionDetail() {
     submitAnswer,
     vote: voteAnswer,
     canAfford,
+    loadingAnswers
   } = useAnswers(question?.id, user?.uid);
 
   const [votingAnswers, setVotingAnswers] = useState<Record<string, boolean>>(
